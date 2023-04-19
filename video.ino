@@ -86,7 +86,7 @@ bool		terminalMode = false;				// Terminal mode
 int			videoMode;							// Current video mode
 bool 		pagedMode = false;					// Is output paged or not? Set by VDU 14 and 15
 int			pagedModeCount = 0;					// Scroll counter for paged mode
-int			kbRepeatDelay = 500;				// Keyboard repeat delay ms (250, 500, 750 or 1000)		
+int			kbRepeatDelay = 500;				// Keyboard repeat delay ms (250, 500, 750 or 1000)
 int			kbRepeatRate = 100;					// Keyboard repeat rate ms (between 33 and 500)
 bool 		initialised = false;				// Is the system initialised yet?
 bool		doWaitCompletion;					// For vdu function
@@ -98,33 +98,33 @@ ESP32Time	rtc(0);								// The RTC
 
 #if DEBUG == 1 || SERIALKB == 1
 HardwareSerial DBGSerial(0);
-#endif 
+#endif
 
 void setup() {
 	disableCore0WDT(); delay(200);								// Disable the watchdog timers
 	disableCore1WDT(); delay(200);
 	#if DEBUG == 1 || SERIALKB == 1
 	DBGSerial.begin(500000, SERIAL_8N1, 3, 1);
-	#endif 
+	#endif
 	ESPSerial.end();
  	ESPSerial.setRxBufferSize(UART_RX_SIZE);					// Can't be called when running
  	ESPSerial.begin(UART_BR, SERIAL_8N1, UART_RX, UART_TX);
 	#if USE_HWFLOW == 1
 	ESPSerial.setHwFlowCtrlMode(HW_FLOWCTRL_RTS, 64);			// Can be called whenever
 	ESPSerial.setPins(UART_NA, UART_NA, UART_CTS, UART_RTS);	// Must be called after begin
-	#else 
+	#else
 	pinMode(UART_RTS, OUTPUT);
-	pinMode(UART_CTS, INPUT);	
+	pinMode(UART_CTS, INPUT);
 	setRTSStatus(true);
 	#endif
 	wait_eZ80();
  	PS2Controller.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
-	PS2Controller.keyboard()->setLayout(&fabgl::UKLayout);
+	PS2Controller.keyboard()->setLayout(&fabgl::USLayout);
 	PS2Controller.keyboard()->setCodePage(fabgl::CodePages::get(1252));
 	PS2Controller.keyboard()->setTypematicRateAndDelay(kbRepeatRate, kbRepeatDelay);
 	init_audio();
 	copy_font();
-  	set_mode(1);
+  set_mode(3);
 	boot_screen();
 }
 
@@ -148,9 +148,9 @@ void loop() {
     	if(ESPSerial.available() > 0) {
 			#if USE_HWFLOW == 0
 			if(ESPSerial.available() > UART_RX_THRESH) {
-				setRTSStatus(false);		
+				setRTSStatus(false);
 			}
-			#endif 
+			#endif
       		if(cursorState) {
  	    		cursorState = false;
         		do_cursor();
@@ -293,9 +293,9 @@ void wait_eZ80() {
     	if(ESPSerial.available() > 0) {
 			#if USE_HWFLOW == 0
 			if(ESPSerial.available() > UART_RX_THRESH) {
-				setRTSStatus(false);		
+				setRTSStatus(false);
 			}
-			#endif 		
+			#endif
 			byte c = ESPSerial.read();	// Only handle VDU 23 packets
 			if(c == 23) {
 				vdu_sys();
@@ -304,7 +304,7 @@ void wait_eZ80() {
 	}
 	debug_log("wait_eZ80: End\n\r");
 }
-	
+
 // Send the cursor position back to MOS
 //
 void sendCursorPosition() {
@@ -312,7 +312,7 @@ void sendCursorPosition() {
 		charX / Canvas->getFontInfo()->width,
 		charY / Canvas->getFontInfo()->height,
 	};
-	send_packet(PACKET_CURSOR, sizeof packet, packet);	
+	send_packet(PACKET_CURSOR, sizeof packet, packet);
 }
 
 // Send a character back to MOS
@@ -344,14 +344,14 @@ void sendScreenPixel(int x, int y) {
 				break;
 			}
 		}
-	}	
+	}
 	byte packet[] = {
 		pixel.R,	// Send the colour components
 		pixel.G,
 		pixel.B,
 		pixelIndex,	// And the pixel index in the palette
 	};
-	send_packet(PACKET_SCRPIXEL, sizeof packet, packet);	
+	send_packet(PACKET_SCRPIXEL, sizeof packet, packet);
 }
 
 // Send an audio acknowledgement
@@ -361,7 +361,7 @@ void sendPlayNote(int channel, int success) {
 		channel,
 		success,
 	};
-	send_packet(PACKET_AUDIO, sizeof packet, packet);	
+	send_packet(PACKET_AUDIO, sizeof packet, packet);
 }
 
 // Send MODE information (screen details)
@@ -422,17 +422,17 @@ void sendGeneralPoll() {
 		b,
 	};
 	send_packet(PACKET_GP, sizeof packet, packet);
-	initialised = true;	
+	initialised = true;
 }
 
 // Clear the screen
-// 
+//
 void cls() {
 	int i;
 
 	if(Canvas) {
 		Canvas->setPenColor(tfg);
- 		Canvas->setBrushColor(tbg);	
+ 		Canvas->setBrushColor(tbg);
 		Canvas->clear();
 	}
 	if(numsprites) {
@@ -486,8 +486,8 @@ char get_screen_char(int px, int py) {
 	// Finally try and match with the character set array
 	//
 	for(int i = 32; i < 128; i++) {
-		if(cmp_char(charData, &fabgl::FONT_AGON_DATA[i * 8], 8)) {	
-			return i;		
+		if(cmp_char(charData, &fabgl::FONT_AGON_DATA[i * 8], 8)) {
+			return i;
 		}
 	}
 	return 0;
@@ -507,7 +507,7 @@ bool cmp_char(uint8_t * c1, uint8_t *c2, int len) {
 void switchTerminalMode() {
 	cls();
   	delete Canvas;
-	Terminal.begin(VGAController);	
+	Terminal.begin(VGAController);
 	Terminal.connectSerialPort(ESPSerial);
 	Terminal.enableCursor(true);
 	terminalMode = true;
@@ -534,7 +534,7 @@ fabgl::VGABaseController * get_VGAController(int colours) {
 // Parameters:
 // - l: The logical colour to change
 // - c: The new colour
-// 
+//
 void setPaletteItem(int l, RGB888 c) {
 	if(l < VGAColourDepth) {
 		switch(VGAColourDepth) {
@@ -633,14 +633,34 @@ int change_mode(int mode) {
 		}
 	}
 	switch(VGAColourDepth) {
-		case  2: resetPalette(defaultPalette02); break;
-		case  4: resetPalette(defaultPalette04); break;
-		case  8: resetPalette(defaultPalette08); break;
-		case 16: resetPalette(defaultPalette10); break;
-		case 64: resetPalette(defaultPalette40); break;
+		case  2:
+      resetPalette(defaultPalette02);
+      gfg = colourLookup[0x3F];
+      tfg = colourLookup[0x3F];
+      break;
+		case  4:
+      resetPalette(defaultPalette04);
+      gfg = colourLookup[0x3F];
+      tfg = colourLookup[0x3F];
+      break;
+		case  8:
+      resetPalette(defaultPalette08);
+      gfg = colourLookup[0x0C];
+      tfg = colourLookup[0x0C];
+      break;
+		case 16:
+      resetPalette(defaultPalette10);
+      gfg = colourLookup[0x08];
+      tfg = colourLookup[0x08];
+      break;
+		case 64:
+      resetPalette(defaultPalette40);
+      gfg = colourLookup[0x08];
+      tfg = colourLookup[0x08];
+      break;
 	}
- 	gfg = colourLookup[0x3F];
-	tfg = colourLookup[0x3F];
+ 	//gfg = colourLookup[0x3F];
+	//tfg = colourLookup[0x3F];
 	tbg = colourLookup[0x00];
   	Canvas->selectFont(&fabgl::FONT_AGON);
   	Canvas->setGlyphOptions(GlyphOptions().FillBackground(true));
@@ -661,7 +681,7 @@ int change_mode(int mode) {
 // If there is an error, restore the last mode
 // Parameters:
 // - mode: The video mode
-// 
+//
 void set_mode(int mode) {
 	int errVal = change_mode(mode);
 	if(errVal != 0) {
@@ -693,7 +713,7 @@ void printFmt(const char *format, ...) {
  }
 
 // Handle the keyboard: CP/M Terminal Mode
-// 
+//
 void do_keyboard_terminal() {
   	fabgl::Keyboard* kb = PS2Controller.keyboard();
 	fabgl::VirtualKeyItem item;
@@ -714,7 +734,7 @@ void do_keyboard_terminal() {
 }
 
 // Wait for shift key to be released, then pressed (for paged mode)
-// 
+//
 void wait_shiftkey() {
   	fabgl::Keyboard* kb = PS2Controller.keyboard();
 	fabgl::VirtualKeyItem item;
@@ -758,7 +778,7 @@ void do_keyboard() {
 		return;
 	}
 	#endif
-	
+
 	if(kb->getNextVirtualKey(&item, 0)) {
 		if(item.down) {
 			switch(item.vk) {
@@ -781,12 +801,12 @@ void do_keyboard() {
 					keycode = 0x7F;
 					break;
 				default:
-					keycode = item.ASCII;	
+					keycode = item.ASCII;
 					break;
 			}
 			// Pack the modifiers into a byte
 			//
-			modifiers = 
+			modifiers =
 				item.CTRL		<< 0 |
 				item.SHIFT		<< 1 |
 				item.LALT		<< 2 |
@@ -831,7 +851,7 @@ void do_cursor() {
 	if(cursorEnabled) {
   		int w = Canvas->getFontInfo()->width;
   		int h = Canvas->getFontInfo()->height;
-	  	int x = charX; 
+	  	int x = charX;
 	  	int y = charY;
 	  	Canvas->swapRectangle(x, y, x + w - 1, y + h - 1);
 	}
@@ -1015,7 +1035,7 @@ void vdu_origin() {
 }
 
 // Handle COLOUR
-// 
+//
 void vdu_colour() {
 	int		colour = readByte_t();
 	byte	c = palette[colour%VGAColourDepth];
@@ -1026,7 +1046,7 @@ void vdu_colour() {
 	}
 	else if(colour >= 128 && colour < 192) {
 		tbg = colourLookup[c];
-		debug_log("vdu_colour: tbg %d = %02X : %02X,%02X,%02X\n\r", colour, c, tbg.R, tbg.G, tbg.B);	
+		debug_log("vdu_colour: tbg %d = %02X : %02X,%02X,%02X\n\r", colour, c, tbg.R, tbg.G, tbg.B);
 	}
 	else {
 		debug_log("vdu_colour: invalid colour %d\n\r");
@@ -1034,7 +1054,7 @@ void vdu_colour() {
 }
 
 // Handle GCOL
-// 
+//
 void vdu_gcol() {
 	int	mode = readByte_t();
 	if(mode >= 0) {
@@ -1064,7 +1084,7 @@ void vdu_palette() {
 		else if(p < 64) {				// If p < 64, then look the value up in the colour lookup table
 			col = colourLookup[p];
 		}
-		else {				
+		else {
 			debug_log("vdu_palette: p=%d not supported\n\r", p);
 			return;
 		}
@@ -1091,7 +1111,7 @@ void vdu_plot() {
 	Canvas->setPenColor(gfg);
 	debug_log("vdu_plot: mode %d, (%d,%d) -> (%d,%d)\n\r", mode, x, y, p1.X, p1.Y);
   	switch(mode) {
-    	case 0x04: 			// Move 
+    	case 0x04: 			// Move
       		Canvas->moveTo(p1.X, p1.Y);
       		break;
     	case 0x05: 			// Line
@@ -1114,7 +1134,7 @@ void vdu_plot_triangle(byte mode) {
   	Point p[3] = {
 		p3,
 		p2,
-		p1, 
+		p1,
 	};
   	Canvas->setBrushColor(gfg);
   	Canvas->fillPath(p, 3);
@@ -1160,11 +1180,11 @@ void vdu_sys() {
 			case 0x01: {					// VDU 23, 1
 				int b = readByte_t();		// Cursor control
 				if(b >= 0) {
-					cursorEnabled = b;	
+					cursorEnabled = b;
 				}
 			}	break;
 			case 0x07: {					// VDU 23, 7
-				vdu_sys_scroll();			// Scroll 
+				vdu_sys_scroll();			// Scroll
 			}	break;
 			case 0x1B: {					// VDU 23, 27
 				vdu_sys_sprites();			// Sprite system control
@@ -1195,7 +1215,7 @@ void vdu_sys_udg(byte c) {
 			return;
 		}
 		buffer[i] = b;
-	}	
+	}
 	memcpy(&fabgl::FONT_AGON_DATA[c * 8], buffer, 8);
 }
 
@@ -1224,7 +1244,7 @@ void vdu_sys_video() {
 			int x = readWord_t();		// Get pixel value at screen position x, y
 			int y = readWord_t();
 			sendScreenPixel((short)x, (short)y);
-		} 	break;		
+		} 	break;
 		case VDP_AUDIO: {				// VDU 23, 0, &85, channel, waveform, volume, freq; duration;
 			vdu_sys_audio();
 		}	break;
@@ -1240,7 +1260,7 @@ void vdu_sys_video() {
 		case VDP_LOGICALCOORDS: {		// VDU 23, 0, &C0, n
 			int b = readByte_t();		// Set logical coord mode
 			if(b >= 0) {
-				logicalCoords = b;	
+				logicalCoords = b;
 			}
 		}	break;
 		case VDP_TERMINALMODE: {		// VDU 23, 0, &FF
@@ -1310,7 +1330,7 @@ void vdu_sys_video_time() {
 		int yr = readByte_t(); if(yr == -1) return;
 		int mo = readByte_t(); if(mo == -1) return;
 		int da = readByte_t(); if(da == -1) return;
-		int ho = readByte_t(); if(ho == -1) return;	
+		int ho = readByte_t(); if(ho == -1) return;
 		int mi = readByte_t(); if(mi == -1) return;
 		int se = readByte_t(); if(se == -1) return;
 
@@ -1363,7 +1383,7 @@ void vdu_sys_sprites(void) {
     int16_t 	x, y;
     int16_t 	width, height;
     uint16_t 	n, temp;
-    
+
     int cmd = readByte_t();
 
     switch(cmd) {
@@ -1374,7 +1394,7 @@ void vdu_sys_sprites(void) {
         		debug_log("vdu_sys_sprites: bitmap %d selected\n\r", current_bitmap);
 			}
 		}	break;
-      	
+
 		case 1: 	// Send bitmap data
       	case 2: {	// Define bitmap in single color
 			int rw = readWord_t(); if(rw == -1) return;
@@ -1392,12 +1412,12 @@ void vdu_sys_sprites(void) {
         	dataptr = (void *)heap_caps_malloc(sizeof(uint32_t)*width*height, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
         	bitmaps[current_bitmap].data = (uint8_t *)dataptr;
 
-        	if(dataptr != NULL) {                  
+        	if(dataptr != NULL) {
 				if(cmd == 1) {
 					//
 					// Read data to the new databuffer
 					//
-					for(n = 0; n < width*height; n++) ((uint32_t *)bitmaps[current_bitmap].data)[n] = readLong_b();  
+					for(n = 0; n < width*height; n++) ((uint32_t *)bitmaps[current_bitmap].data)[n] = readLong_b();
 					debug_log("vdu_sys_sprites: bitmap %d - data received - width %d, height %d\n\r", current_bitmap, width, height);
 				}
 				if(cmd == 2) {
@@ -1405,8 +1425,8 @@ void vdu_sys_sprites(void) {
 					//
 					// Define single color
 					//
-					for(n = 0; n < width*height; n++) ((uint32_t *)dataptr)[n] = color;            
-					debug_log("vdu_sys_sprites: bitmap %d - set to solid color - width %d, height %d\n\r", current_bitmap, width, height);            
+					for(n = 0; n < width*height; n++) ((uint32_t *)dataptr)[n] = color;
+					debug_log("vdu_sys_sprites: bitmap %d - set to solid color - width %d, height %d\n\r", current_bitmap, width, height);
 				}
 				// Create bitmap structure
 				//
@@ -1418,7 +1438,7 @@ void vdu_sys_sprites(void) {
         		debug_log("vdu_sys_sprites: bitmap %d - data discarded, no memory available - width %d, height %d\n\r", current_bitmap, width, height);
         	}
 		}	break;
-      	
+
 		case 3: {	// Draw bitmap to screen (x,y)
 			int	rx = readWord_t(); if(rx == -1) return; x = rx;
 			int ry = readWord_t(); if(ry == -1) return; y = ry;
@@ -1432,7 +1452,7 @@ void vdu_sys_sprites(void) {
 
 	   /*
 		* Sprites
-		* 
+		*
 		* Sprite creation order:
 		* 1) Create bitmap(s) for sprite, or re-use bitmaps already created
 		* 2) Select the correct sprite ID (0-255). The GDU only accepts sequential sprite sets, starting from ID 0. All sprites must be adjacent to 0
@@ -1454,7 +1474,7 @@ void vdu_sys_sprites(void) {
 			sprites[current_sprite].clearBitmaps();
 			debug_log("vdu_sys_sprites: sprite %d - all frames cleared\n\r", current_sprite);
 		}	break;
-        
+
       	case 6:	{	// Add frame to sprite
 			int b = readByte_t(); if(b == -1) return; n = b;
 			sprites[current_sprite].addBitmap(&bitmaps[n]);
@@ -1511,7 +1531,7 @@ void vdu_sys_sprites(void) {
 			int	rx = readWord_t(); if(rx == -1) return; x = rx;
 			int ry = readWord_t(); if(ry == -1) return; y = ry;
 
-			sprites[current_sprite].moveTo(x, y); 
+			sprites[current_sprite].moveTo(x, y);
 			debug_log("vdu_sys_sprites: sprite %d - move to (%d,%d)\n\r", current_sprite, x, y);
 		}	break;
 
@@ -1524,7 +1544,7 @@ void vdu_sys_sprites(void) {
 		}	break;
 
 	  	case 15: {	// Refresh
-			if(numsprites) { 
+			if(numsprites) {
 				VGAController->refreshSprites();
 			}
 			debug_log("vdu_sys_sprites: perform sprite refresh\n\r");
